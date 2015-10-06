@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset='utf-8'>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+	<style>
+	body {
+		text-align:center;
+		font-family:sans-serif;
+	}
+	.yaxis text {
+		font-size:10px;
+	}
+	.title {
+		font-size:18px;
+	}
+	.label {
+		font-size:12px;
+	}
+	.yaxis path, .yaxis line {
+		fill: none;
+		stroke: rgba(0,0,0,0.5);
+	}
+	line {
+		stroke: rgba(0,0,0,0.5);
+	}
+	</style>
+</head>
+
+<body>
+	
+	<script>
+	
+	var canvasHeight = 400,
+		canvasWidth = 800,
+		margin = {'top': 70, 'bottom': 40, 'left': 60, 'right': 60},
+		chartHeight = canvasHeight - margin.top - margin.bottom,
+		chartWidth = canvasWidth - margin.left - margin.right;
+	
+	var canvas = d3.select('body').append('svg').attr('class', 'canvas').attr('height', canvasHeight).attr('width', canvasWidth);
+	var chart = canvas.append('g').attr('class','chart').attr('height', chartHeight).attr('width', chartWidth)
+		.attr('transform', 'translate(' + margin.left + ', ' + margin.top + ')');
+	
+	var times = 50,
+		upperLimit = times,
+		numVars = 10,
+		numBars = numVars * 5 + 1,
+		barWidth = chartWidth / numBars * 0.75,
+		barColor = 'rgba(20,50,220,0.25)',
+		frequencies = [],
+		numRolls = 0,
+		delay = 1000
+		rollFreq = 1200;
+		
+	var yScale = d3.scale.linear().domain([0,upperLimit]).range([chartHeight,0]);
+	var yScaleRight = d3.scale.linear().domain([0,upperLimit/times*100]).range([chartHeight,0]);
+	var hScale = d3.scale.linear().domain([0,upperLimit]).range([0, chartHeight]);
+	var yAxis = d3.svg.axis()
+		.scale(yScale)
+		.orient('left');
+	var yAxisRight = d3.svg.axis()
+		.scale(yScaleRight)
+		.orient('right');
+	
+	chart.append('g')
+		.attr('class', 'yaxis left')
+		.call(yAxis);
+	chart.append('g')
+		.attr('class', 'yaxis right')
+		.attr('transform', 'translate(' + chartWidth + ', 0)')
+		.call(yAxisRight);
+	chart.append('line')
+		.attr('stroke-width','1px')
+		.attr('stroke', 'black')
+		.attr('x1', 0).attr('y1', chartHeight)
+		.attr('x2',chartWidth).attr('y2',chartHeight)
+	canvas.append('text')
+		.text('Central Limit Theorem: ' + numVars + ' Uniform Random Variables')
+		.attr('class', 'title')
+		.attr('text-anchor', 'middle')
+		.attr({'x': canvasWidth*0.5, 'y' : margin.top*0.5 });
+	canvas.append('text')
+		.text('Frequency (Total)')
+		.attr('class', 'yaxis label')
+		.attr('text-anchor', 'middle')
+		.attr('transform', 'rotate(270 ' + margin.left*0.39 + ', ' + canvasHeight*0.5 + ')')
+		.attr('x',margin.left*0.39)
+		.attr('y',canvasHeight*0.5);
+	canvas.append('text')
+		.text('Frequency (Percent)')
+		.attr('class', 'yaxis label')
+		.attr('text-anchor', 'middle')
+		.attr('transform', 'rotate(90, ' + (canvasWidth - margin.left*0.4) + ', ' + canvasHeight*0.5 + ')')
+		.attr('x', canvasWidth - margin.left*0.4)
+		.attr('y', canvasHeight*0.5);
+	
+	var frequencies =[];
+	for (var i=0; i < numBars; i++) {
+		frequencies[i] = 0;
+	};
+	
+	var bars = chart.selectAll('rect').data(frequencies)
+		.enter().append('rect')
+		.attr('x', function(d,i) { return chartWidth / numBars * (i+0.5) - barWidth * 0.5; } )
+		.attr('y', chartHeight )
+		.attr('width', barWidth)
+		.attr('height', 0 )
+		.attr('fill', barColor);
+				
+	var rollDice = function () {
+
+		for (var n=1; n <= times; n++) {
+			var dice = [];
+			for (var i=0; i < numVars; i++) {
+				dice[i] = Math.ceil(Math.random() * 6);
+			}
+			var total = d3.sum(dice);
+			numRolls++;
+			frequencies[total - numVars] += 1;
+		};
+		if (d3.max(frequencies) > upperLimit) {
+			upperLimit += times*0.5;
+			hScale.domain([0,upperLimit]);
+			yScale.domain([0,upperLimit]);
+			yAxis.scale(yScale);
+			chart.selectAll('.yaxis.left').transition().duration(delay).call(yAxis);
+		};
+		yScaleRight.domain([0,upperLimit/numRolls*100]);
+		yAxisRight.scale(yScaleRight);
+		chart.selectAll('.yaxis.right').transition().duration(delay).call(yAxisRight);
+		
+		bars.data(frequencies).transition().duration(delay)
+			.attr('y', function (d) { return chartHeight - hScale(d) } )
+			.attr('height', function (d) { return hScale(d) } );
+	};
+		
+	var rolling = setInterval(rollDice,rollFreq);
+	
+	canvas.on('click', function () { clearInterval(rolling) } );
+	
+	</script>
+</body>
+
+</html>

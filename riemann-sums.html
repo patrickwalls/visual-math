@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset='utf-8'>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js'></script>
+</head>
+
+<body>
+
+<script>
+
+	var width = 960, height = 500;
+	var canvas = d3.select('body').append('svg').attr('width', width).attr('height', height);
+	var margin = { 'top': 20, 'bottom': 20, 'left': 20, 'right': 20},
+		chartHeight = height - margin.top - margin.bottom,
+		chartWidth = width - margin.left - margin.right;
+	var chart = canvas.append('g')
+		.attr('height', chartHeight)
+		.attr('width', chartWidth)
+		.attr('transform', 'translate(' + margin.left + ', ' + margin.top + ')');
+
+	// DRAW AXES
+	var xAxis = chart.append('line')
+		.attr({'x1': 0, 'y1': 0, 'x2': 0, 'y2': chartHeight})
+		.attr('stroke', 'rgb(100,100,100)')
+		.attr('stroke-width', 1)
+		.attr('fill', 'none');
+	var yAxis = chart.append('line')
+		.attr({'x1': 0, 'y1': chartHeight, 'x2': chartWidth, 'y2': chartHeight})
+		.attr('stroke', 'rgb(100,100,100)')
+		.attr('stroke-width', 1)
+		.attr('fill', 'none');
+
+	// MAKE RANDOM CURVE GENERATOR
+	var generateRandomCurve = function () {
+		var n = Math.floor(Math.random()*4+1),
+		params = d3.range(0,n).map( function () { return [ Math.random()*4*Math.PI , Math.random()*Math.PI-Math.PI ]; });
+		var f = function(x) {
+			return d3.sum(params.map( function(d) { return Math.sin(d[0]*x + d[1]); } )) / (3*n) + 0.5 ;
+		};
+		return f;
+	};
+
+	// SET INITIALS CONDITIONS
+	var rectWidth = 100,
+		numRects = Math.floor(chartWidth/rectWidth),
+		timeStep = 1000;
+	var numPoints = Math.floor(chartWidth/5);
+	var X = d3.range(0,numPoints).map( function(d) { return d/numPoints; } ),
+		Y = X.map( function(d) { return 0; });
+		points = d3.zip(X,Y);
+	var xScale = d3.scale.linear().domain([0,1]).range([0,chartWidth]),
+		yScale = d3.scale.linear().domain([0,1]).range([chartHeight,0]);
+	var numPoints = Math.floor(chartWidth/5),
+		X = d3.range(0,numPoints).map(function (d) { return d/numPoints; } ),
+		Y = X.map( function (d) { return 0; } ),
+		points = d3.zip(X,Y);
+	var dAttrFunction = d3.svg.line()
+		.x( function (d) { return xScale(d[0]); })
+		.y( function (d) { return yScale(d[1]); })
+		.interpolate('basis');
+	var curve = chart.append('path')
+		.attr('d', dAttrFunction(points))
+		.attr('stroke', 'rgb(50,50,250)')
+		.attr('opacity', 1)
+		.attr('fill', 'none');
+
+	// MAKE THE ANIMATION
+	var animate = function() {
+
+		// STEP 1: Draw the curve
+		randomCurve = generateRandomCurve();
+		Y = X.map( function(d) { return randomCurve(d); });
+		points = d3.zip(X,Y);
+		curve.transition().duration(timeStep)
+			.attr('d', dAttrFunction(points));
+
+		// STEP 2: Draw the rectangles
+		var nodes = d3.range(0,numRects).map( function(d) { return {'node':d, 'x': d/numRects } });
+		var rects = chart.selectAll('rect')
+				.data(nodes)
+			.enter().append('rect')
+				.attr('x', function(d) { return xScale(d.x); })
+				.attr('y', chartHeight)
+				.attr('width', rectWidth)
+				.attr('height', 0)
+				.attr('fill', 'rgb(50,50,250)')
+				.attr('opacity', 0.5);
+
+		rects.transition().duration(timeStep).delay(timeStep)
+			.attr('y', function(d) { return yScale(randomCurve(d.x)); })
+			.attr('height', function(d) { return chartHeight - yScale(randomCurve(d.x)); });
+
+		// STEP 3: Divide each rectangle in two and resize to the curve
+		var redrawRects = function(step) {
+			
+			nodes = nodes.map( function(d) { return {'node':2*d.node, 'x': d.x} });
+ 		   	rects = chart.selectAll('rect').data(nodes);
+			nodes = d3.range(0,numRects*Math.pow(2,step)).map( function(d) { return {'node':d, 'x': d/(numRects*Math.pow(2,step)) } });
+			
+			rects.attr('width', rectWidth/Math.pow(2,step));
+			rects.data(nodes, function(d) { return d.node })
+				.enter().append('rect')
+					.attr('width', Math.ceil(rectWidth/Math.pow(2,step)))
+					.attr('x', function(d) { return xScale(d.x); })
+					.attr('width', rectWidth/Math.pow(2,step))
+					.attr('fill', 'rgb(50,50,250)')
+					.attr('opacity', 0.5)
+					.attr('y', function(d) { return yScale(randomCurve(d.x - 1/(numRects*Math.pow(2,step)) )); })
+					.attr('height', function(d) { return chartHeight - yScale(randomCurve(d.x - 1/(numRects*Math.pow(2,step)))); })
+				.transition().duration(timeStep)
+					.attr('y', function(d) { return yScale(randomCurve(d.x)); })
+					.attr('height', function(d) { return chartHeight - yScale(randomCurve(d.x)); });
+				if (step < 4) {
+					setTimeout(function() { redrawRects(step+1) },timeStep);
+				};
+		};
+		
+		setTimeout(function() { redrawRects(1) },timeStep*2);
+
+		// STEP 5:  Fade out
+		
+
+	};
+
+	animate();
+
+</script>
+
+</body>

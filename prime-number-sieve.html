@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset='utf-8'>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js" charset="utf-8"></script>
+	<style>
+	body {
+		text-align:center;
+		margin:0;
+		font-family:sans-serif;
+	}
+	</style>
+</head>
+
+<body>
+	
+	<script>
+	
+	// var windowHeight = $(window).height();
+	// var windowWidth = $(window).width();
+
+	var canvasHeight = 400,
+		canvasWidth = 700;
+	
+	var dotRadius = 4,
+		buffer = 1,
+		dotColor = 'rgba(50,100,100,0.3)',
+		darkColor = 'rgba(50,100,100,0.8)',
+		noColor = 'rgba(50,100,100,0)',
+		numRows = Math.floor(canvasHeight / (2*(dotRadius + buffer))),
+		numCols = Math.floor(canvasWidth / (2*(dotRadius  + buffer)));
+		
+	var margin = {
+			'top':(canvasHeight - numRows * 2 * (dotRadius + buffer))*0.5,
+			'bottom': (canvasHeight - numRows * 2 * (dotRadius + buffer))*0.5,
+			'left': (canvasWidth - numCols * 2 * (dotRadius + buffer))*0.5,
+			'right': (canvasWidth - numCols * 2 * (dotRadius + buffer))*0.5
+			};
+	var chartHeight = canvasHeight - margin.top - margin.bottom;
+	var chartWidth = canvasWidth - margin.left - margin.right;
+	
+	var canvas = d3.select('body').append('svg').attr('class', 'canvas').attr('height', canvasHeight).attr('width', canvasWidth);
+
+	var chart = canvas.append('g').attr('class','chart').attr('height', chartHeight).attr('width', chartWidth)
+		.attr('transform', 'translate(' + margin.left + ', ' + margin.top + ')');
+	
+	var numbers = [];
+	
+	for (i=0; i < numRows*numCols; i++) {
+		numbers[i] = i+1;
+	};
+	
+	var dots = chart.selectAll('circles').data(numbers).enter().append('circle')
+		.attr('class', function (d) { return d == 1 ? 'one' : 'number'})
+		.attr('r', dotRadius)
+		.attr('fill', dotColor)
+		.attr('stroke',dotColor)
+		.attr('stroke-width', '1px')
+		.attr('cx', function (d) { var col = d % numCols; return col == 0 ? (2*(dotRadius+buffer) * numCols - dotRadius - buffer) : (2*(dotRadius+buffer)*col - dotRadius - buffer); })
+		.attr('cy', function (d) { var row = Math.ceil(d / numCols); return 2*(dotRadius+buffer)*row - dotRadius - buffer; })
+		.on('click', function () {
+			var thisDot = d3.select(this);
+			text.text(thisDot.attr('class') == 'prime' ? thisDot.datum() + ' is a prime number' : thisDot.datum() + ' is not a prime number');
+		});
+	
+	function drawDots () {
+		
+		var primeDot = chart.select('.number').attr('class', 'prime')
+		
+		if (primeDot[0][0] != null) {
+			
+			primeDot.transition().duration(400).attr('fill', darkColor);
+			var prime = primeDot.datum();
+		
+			var selectDots = chart.selectAll('circle').filter(function (d) { return (((d % prime) == 0) && (d > prime)) }).attr('class', 'notPrime');
+			var dotTime = 1;
+			var t1 = selectDots.transition().duration(400).delay(function (d,i) {return i*dotTime}).attr('fill', darkColor);
+			t1.transition().duration(500).attr('fill', noColor);
+		
+			setTimeout(function () { drawDots(); }, selectDots[0].length + 1000);
+			
+		}
+
+	};
+
+	d3.select('circle').attr('fill', noColor);
+	drawDots();
+	
+	var text = d3.select('body').append('p');
+	
+	</script>
+</body>
+
+</html>

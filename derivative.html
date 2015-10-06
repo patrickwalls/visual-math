@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset='utf-8'>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js'></script>
+</head>
+
+<body>
+	
+	<script>
+	
+	// DRAW CANVAS AND CHART AREA
+	
+	var height = 600,
+		width = 960;
+	
+	var canvas = d3.select('body').append('svg')
+		.attr('height', height)
+		.attr('width', width);
+		
+	var margin = { 'top': 0, 'bottom': 0, 'left': 0, 'right': 0},
+		chartHeight = height - margin.top - margin.bottom,
+		chartWidth = width - margin.left - margin.right;
+
+	var chart = canvas.append('g')
+		.attr('height', chartHeight)
+		.attr('width', chartWidth)
+		.attr('transform', 'translate(' + margin.left + ', ' + margin.top + ')');
+	
+	// DRAW X-AXIS AND Y-AXIS
+		
+	var xAxis = chart.append('line')
+		.attr({'x1': 0, 'y1': 0, 'x2': 0, 'y2': chartHeight})
+		.attr('stroke', 'rgb(100,100,100)')
+		.attr('stroke-width', 1)
+		.attr('fill', 'none');
+	
+	var yAxis = chart.append('line')
+		.attr({'x1': 0, 'y1': chartHeight, 'x2': chartWidth, 'y2': chartHeight})
+		.attr('stroke', 'rgb(100,100,100)')
+		.attr('stroke-width', 1)
+		.attr('fill', 'none');
+	
+	// MAKE A RANDOM CURVE GENERATOR WITH DOMAIN [0,1] AND RANGE [0,1]
+	
+	var generateRandomCurve = function () {
+		
+		var n = Math.floor(Math.random()*4+1),
+			params = d3.range(0,n).map( function () {
+				return [ Math.random()*4*Math.PI , Math.random()*Math.PI-Math.PI ] ; // [ FREQUENCY , SHIFT ]
+			});
+			
+		var f = function(x) {
+			return d3.sum(params.map( function(d) { return Math.sin(d[0]*x + d[1]); } )) / (3*n) + 0.5 ;
+		};
+		
+		return f;
+	};
+	
+	// SET INITIAL CONDITIONS
+
+	var dotRadius = 4,
+		maxOpacity = 0.7,
+		timeStep = 1000,
+		pause = 500;
+
+	var xScale = d3.scale.linear().domain([0,1]).range([0,chartWidth]),
+		yScale = d3.scale.linear().domain([0,1]).range([chartHeight,0]);
+	
+	var numPoints = Math.floor(chartWidth/5),
+		X = d3.range(0,numPoints).map(function (d) { return d/numPoints; } ),
+		Y = X.map( function (d) { return 0; } ),
+		points = d3.zip(X,Y);
+
+	var lineFunction = d3.svg.line()
+		.x( function (d) { return xScale(d[0]); })
+		.y( function (d) { return yScale(d[1]); })
+		.interpolate('basis');
+	
+	var line = chart.append('path')
+		.attr('class', 'animated-elt')
+		.attr('d', lineFunction(points))
+		.attr('stroke', 'rgb(50,50,250)')
+		.attr('opacity', 0)
+		.attr('fill', 'none');
+	
+	var dot = chart.append('circle')
+		.attr('class','animated-elt')
+		.attr('fill', 'rgb(50,50,250)')
+		.attr('opacity', 0)
+		.attr('r', dotRadius);
+		
+	var dotLine = chart.append('line')
+		.attr('class','animated-elt')
+		.attr('stroke-dasharray', '5,5')
+		.attr('stroke', 'rgb(50,50,250)')
+		.attr('opacity', 0);
+
+	var dotx = chart.append('circle')
+		.attr('class','animated-elt')
+		.attr('r', dotRadius)
+		.attr('stroke', 'rgb(50,50,250)')
+		.attr('fill', 'none')
+		.attr('opacity', 0);
+	
+	var dotLinex = chart.append('line')
+		.attr('class','animated-elt')
+		.attr('stroke-dasharray', '5,5')
+		.attr('stroke', 'rgb(50,50,250)')
+		.attr('opacity', 0);
+	
+	var tangent = chart.append('line')
+		.attr('class','animated-elt')
+		.attr('stroke', 'rgb(250,150,180)')
+		.attr('stroke-width', 1.5)
+		.attr('opacity', 0);
+	
+	var animate = function () {
+		
+		var randomCurve = generateRandomCurve(),
+		Y = X.map( function(d) { return randomCurve(d); } ),
+		points = d3.zip(X,Y),
+		step = 0;
+		
+		// STEP 0: Draw random curve
+		step = 0;
+		line
+			.attr('opacity', maxOpacity)
+				.transition().duration(timeStep)
+			.attr('d', lineFunction(points));
+		
+		// STEP 1: Pick random point A AND draw line connecting point A to x-axis
+		step = 1;
+		var i = Math.floor( (Math.random() + 0.5) * X.length*0.5 ),
+			cx = xScale( X[i] ),
+			cy = yScale( Y[i] );
+		
+		dot
+			.attr('cx', cx )
+			.attr('cy', cy )
+				.transition().delay(step*(pause + timeStep)).duration(timeStep)
+			.attr('opacity', maxOpacity);
+		
+		dotLine
+			.attr({ 'x1': cx, 'y1': chartHeight, 'x2': cx, 'y2': chartHeight})
+			.attr('opacity', maxOpacity)
+				.transition().delay(step*(pause + timeStep)).duration(timeStep)
+			.attr('y2', cy + dotRadius);
+		
+		// STEP 2: Pick point X AND draw line connecting point X to x-axis
+		step = 2;
+		var ix = (i > numPoints/2) ? Math.floor(i/2) : Math.floor((numPoints - i)/2 + i),
+			cxx = xScale( X[ix] ),
+			cyx = yScale( Y[ix] );
+		
+		dotx
+			.attr('cx', cxx )
+			.attr('cy', cyx )
+				.transition().delay(step*(pause + timeStep)).duration(timeStep)
+			.attr('opacity', maxOpacity);
+		
+		dotLinex	
+			.attr({ 'x1': cxx, 'y1': chartHeight, 'x2': cxx, 'y2': chartHeight})
+			.attr('opacity', maxOpacity)
+				.transition().delay(step*(pause + timeStep)).duration(timeStep)
+			.attr('y2', cyx + dotRadius);
+
+		// INTERLUDE: Setup the interpolators
+		var yInterpolator = function (t) {
+			return yScale( randomCurve((1-t)*X[ix] + t*X[i]) );	
+		};
+	
+		var y1TangentInterpolator = function (t) {
+			var X1 = X[i],
+				X2 = (1-t)*X[ix] + t*X[i] + 0.0001,
+				Y1 = randomCurve(X1),
+				Y2 = randomCurve(X2),
+				m = (Y2 - Y1) / (X2 - X1),
+				dy = m*X1;
+			return yScale(Y1 - dy);	
+		};
+
+		var y2TangentInterpolator = function (t) {
+			var X1 = X[i],
+				X2 = (1-t)*X[ix] + t*X[i] + 0.0001,
+				Y1 = randomCurve(X1),
+				Y2 = randomCurve(X2),
+				m = (Y2 - Y1) / (X2 - X1),
+				dy = m*(1-X1);
+			return yScale(Y1 + dy);	
+		};
+
+		// STEP 3: Draw the tangent line
+		step = 3;
+		tangent
+			.attr({'x1': cx, 'y1': cy, 'x2': cx, 'y2': cy})
+			.attr('opacity', maxOpacity)
+				.transition().delay(step*(pause + timeStep)).duration(timeStep)
+			.attr({'y1': y1TangentInterpolator(0), 'x1': 0})
+			.attr({'y2': y2TangentInterpolator(0), 'x2': chartWidth});
+			
+		// STEP 4: Move point X to point A AND the tangent line
+		step = 4;
+		
+		dotx.transition().delay(step*(pause + timeStep)).duration(2*timeStep)
+			.attrTween('cy', function(d,i,a) { return yInterpolator; })
+			.attr('cx', cx);
+
+		dotLinex.transition().delay(step*(pause + timeStep)).duration(2*timeStep)
+			.attrTween('y2', function(d,i,a) { return yInterpolator; })
+			.attr('x1', cx)
+			.attr('x2', cx);
+		
+		tangent.transition().delay(step*(pause + timeStep)).duration(2*timeStep)
+			.attrTween('y1', function(d,i,a) { return y1TangentInterpolator; })
+			.attrTween('y2', function(d,i,a) { return y2TangentInterpolator; });
+			
+		// STEP 5: Fade out
+		step = 5;
+		d3.selectAll('.animated-elt')
+				.transition().delay(step*(pause + timeStep) + timeStep).duration(timeStep)
+			.attr('opacity',0);
+		
+		Y = X.map( function (d) { return 0; } );
+		points = d3.zip(X,Y);
+		
+		line.attr('d', lineFunction(points));
+
+		// STEP 6: Repeat
+		step = 6;
+		setTimeout(animate,step*(pause + timeStep) + timeStep);
+					
+	};
+	
+	animate();		
+		
+	
+	</script>
+	
+	
+</body>
+
+</html>
